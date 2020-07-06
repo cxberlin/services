@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+  brouter-web:
+    build: ../brouter-web/
+    ports:
+        - "8083:80"
+    volumes:
+        - ../brouter/data/profiles:/usr/share/nginx/html/profiles
+    depends_on:
+      - brouter-app
+  brouter-app:
+    build: ../brouter/
+    ports:
+        - "17777:17777"
+    volumes:
+        - ../brouter/data/profiles:/data/profiles
+        - ../brouter/data/segments:/data/segments
+        - ../brouter/data/customprofiles:/data/customprofiles
+    environment:
+        - REQUEST_TIMEOUT=300
+        - JAVA_OPTS=-Xmx128M -Xms128M -Xmn8M -XX:+PrintCommandLineFlags
+        - MAX_THREADS=1
+  tiles:
+    build: ../openstreetmap-tile-server-cyclosm/
+    command: run
+    volumes:
+      - openstreetmap-cyclosm-data:/var/lib/postgresql/12/main
+    ports:
+      - 8081:80
+
+volumes:
+  openstreetmap-cyclosm-data:
+    external: true
