@@ -12,7 +12,7 @@ services:
   brouter-app:
     build: ../brouter/
     ports:
-        - "17777:17777"
+        - "17776:17777"
     volumes:
         - ../brouter/data/profiles:/data/profiles
         - ../brouter/data/segments:/data/segments
