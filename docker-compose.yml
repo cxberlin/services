@@ -19,16 +19,29 @@ services:
         - ../brouter/data/customprofiles:/data/customprofiles
     environment:
         - REQUEST_TIMEOUT=300
-        - JAVA_OPTS=-Xmx128M -Xms128M -Xmn8M -XX:+PrintCommandLineFlags
-        - MAX_THREADS=1
+        - JAVA_OPTS=-Xmx512M -Xms512M -Xmn16M -XX:+PrintCommandLineFlags
+        - MAX_THREADS=4
   tiles:
     build: ../openstreetmap-tile-server-cyclosm/
     command: run
     volumes:
-      - openstreetmap-cyclosm-data:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-data-upd:/var/lib/postgresql/12/main
     ports:
       - 8081:80
+    environment:
+      - UPDATES=enabled
+  pois:
+    build: ../tile-server-pois/
+    command: run
+    volumes:
+      - openstreetmap-cyclosm-data-poi:/var/lib/postgresql/12/main
+    ports:
+      - 8084:80
+    environment:
+      - UPDATES=enabled
 
 volumes:
-  openstreetmap-cyclosm-data:
+  openstreetmap-cyclosm-data-upd:
+    external: true
+  openstreetmap-cyclosm-data-poi:
     external: true
