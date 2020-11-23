@@ -25,7 +25,7 @@ services:
     build: ../openstreetmap-tile-server-cyclosm/
     command: run
     volumes:
-      - openstreetmap-cyclosm-data-upd:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-data-europe:/var/lib/postgresql/12/main
     ports:
       - 8081:80
     environment:
@@ -41,7 +41,7 @@ services:
       - UPDATES=enabled
 
 volumes:
-  openstreetmap-cyclosm-data-upd:
+  openstreetmap-cyclosm-data-europe:
     external: true
   openstreetmap-cyclosm-data-poi:
     external: true
