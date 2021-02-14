@@ -28,6 +28,7 @@ services:
         - STYLEREPO=https://github.com/cxberlin/gravel-cartocss-style.git
         - STYLECOMMIT=3310be06f08ab362eade0d650c3bebae42c478e2
     command: run
+    image: cxberlin/tileserver
     volumes:
       - openstreetmap-cyclosm-data-eu-nov20:/var/lib/postgresql/12/main
     ports:
@@ -47,9 +48,27 @@ services:
       - 8084:80
     environment:
       - UPDATES=enabled
+  osm-import:
+    image: cxberlin/tileserver
+    depends_on:
+      - tiles
+    volumes:
+      - openstreetmap-cyclosm-data-eu-feb21:/var/lib/postgresql/12/main
+    command: import
+    environment:
+      - THREADS=4
+      - UPDATES=enabled
+      - DOWNLOAD_PBF=https://download.geofabrik.de/europe-latest.osm.pbf
+      - DOWNLOAD_POLY=https://download.geofabrik.de/europe.poly
+    deploy:
+      resources:
+        limits:
+          memory: 6G
 
 volumes:
   openstreetmap-cyclosm-data-eu-nov20:
+    external: true
+  openstreetmap-cyclosm-data-eu-feb21:
     external: true
   openstreetmap-cyclosm-data-poi:
     external: true
