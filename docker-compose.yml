@@ -26,7 +26,7 @@ services:
       context: ../gravel-tile-server/
       args:
         - STYLEREPO=https://github.com/cxberlin/gravel-cartocss-style.git
-        - STYLECOMMIT=11bf401331af5636a1cb338fab29b4c849652ead
+        - STYLECOMMIT=3310be06f08ab362eade0d650c3bebae42c478e2
     command: run
     volumes:
       - openstreetmap-cyclosm-data-eu-nov20:/var/lib/postgresql/12/main
