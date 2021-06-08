@@ -54,21 +54,84 @@ services:
       - tiles
     volumes:
       - openstreetmap-cyclosm-data-eu-feb21:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-nodes:/nodes
     command: import
     environment:
       - THREADS=4
       - UPDATES=enabled
       - DOWNLOAD_PBF=https://download.geofabrik.de/europe-latest.osm.pbf
       - DOWNLOAD_POLY=https://download.geofabrik.de/europe.poly
-    deploy:
-      resources:
-        limits:
-          memory: 6G
+      - OSM2PGSQL_EXTRA_ARGS=-C 4096 --flat-nodes /nodes/flat_nodes.bin
+  postgresql:
+    image: docker.io/bitnami/postgresql:11
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - 'postgresql_data:/bitnami/postgresql'
+  redis:
+    image: docker.io/bitnami/redis:6.0
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - 'redis_data:/bitnami'
+  discourse:
+    image: docker.io/bitnami/discourse:2
+    ports:
+      - '8085:3000'
+    depends_on:
+      - postgresql
+      - redis
+    volumes:
+      - 'discourse_data:/bitnami'
+    environment:
+      - POSTGRESQL_HOST=postgresql
+      - POSTGRESQL_ROOT_USER=postgres
+      - POSTGRESQL_CLIENT_CREATE_DATABASE_NAME=bitnami_application
+      - POSTGRESQL_CLIENT_CREATE_DATABASE_USERNAME=bn_discourse
+      - POSTGRESQL_CLIENT_CREATE_DATABASE_PASSWORD=bitnami1
+      - DISCOURSE_POSTGRESQL_NAME=bitnami_application
+      - DISCOURSE_POSTGRESQL_USERNAME=bn_discourse
+      - DISCOURSE_POSTGRESQL_PASSWORD=bitnami1
+      - DISCOURSE_HOSTNAME=www.gravel-forum.org
+      - DISCOURSE_SITENAME=Gravel Forum
+      - DISCOURSE_EMAIL=gravelforum.org@gmail.com
+      - SMTP_HOST=smtp.elasticemail.com
+      - SMTP_PORT=2525
+      - SMTP_USER=noreply@gravel-forum.org
+      - SMTP_PASSWORD=topsecret
+  sidekiq:
+    image: docker.io/bitnami/discourse:2
+    depends_on:
+      - discourse
+    volumes:
+      - 'discourse_data:/bitnami'
+    command: 'nami start --foreground discourse-sidekiq'
+    environment:
+      - DISCOURSE_POSTGRESQL_NAME=bitnami_application
+      - DISCOURSE_POSTGRESQL_USERNAME=bn_discourse
+      - DISCOURSE_POSTGRESQL_PASSWORD=bitnami1
+      - DISCOURSE_HOST=discourse
+      - DISCOURSE_PORT=3000
+      - DISCOURSE_HOSTNAME=www.gravel-forum.org
+      - DISCOURSE_SITENAME="Gravel Forum"
+      - DISCOURSE_EMAIL=gravelforum.org@gmail.com
+      - SMTP_HOST=smtp.elasticemail.com
+      - SMTP_PORT=2525
+      - SMTP_USER=noreply@gravel-forum.org
+      - SMTP_PASSWORD=topsecret
 
 volumes:
+  postgresql_data:
+    external: true
+  redis_data:
+    external: true
+  discourse_data:
+    external: true
   openstreetmap-cyclosm-data-eu-nov20:
     external: true
   openstreetmap-cyclosm-data-eu-feb21:
     external: true
   openstreetmap-cyclosm-data-poi:
+    external: true
+  openstreetmap-cyclosm-nodes:
     external: true
