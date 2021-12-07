@@ -30,7 +30,7 @@ services:
     command: run
     image: cxberlin/tileserver
     volumes:
-      - openstreetmap-cyclosm-data-eu-nov20:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-data-dach-aug21:/var/lib/postgresql/12/main
     ports:
       - 8081:80
     environment:
@@ -40,10 +40,10 @@ services:
       context: ../gravel-tile-server/
       args:
         - STYLEREPO=https://github.com/stefankeidel/poi-cartocss-style.git
-        - STYLECOMMIT=1cc042f00c64f4e15e09018688343198f505a9f9
+        - STYLECOMMIT=df2aae80cb557c0cb659be275bc4e7d803f29c23
     command: run
     volumes:
-      - openstreetmap-cyclosm-data-poi:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-data-poi-dach-aug21:/var/lib/postgresql/12/main
     ports:
       - 8084:80
     environment:
@@ -53,14 +53,14 @@ services:
     depends_on:
       - tiles
     volumes:
-      - openstreetmap-cyclosm-data-eu-feb21:/var/lib/postgresql/12/main
+      - openstreetmap-cyclosm-data-dach-aug21:/var/lib/postgresql/12/main
       - openstreetmap-cyclosm-nodes:/nodes
     command: import
     environment:
       - THREADS=4
       - UPDATES=enabled
-      - DOWNLOAD_PBF=https://download.geofabrik.de/europe-latest.osm.pbf
-      - DOWNLOAD_POLY=https://download.geofabrik.de/europe.poly
+      - DOWNLOAD_PBF=http://download.geofabrik.de/europe/dach-latest.osm.pbf
+      - DOWNLOAD_POLY=http://download.geofabrik.de/europe/dach.poly
       - OSM2PGSQL_EXTRA_ARGS=-C 4096 --flat-nodes /nodes/flat_nodes.bin
   postgresql:
     image: docker.io/bitnami/postgresql:11
@@ -127,11 +127,9 @@ volumes:
     external: true
   discourse_data:
     external: true
-  openstreetmap-cyclosm-data-eu-nov20:
+  openstreetmap-cyclosm-data-dach-aug21:
     external: true
-  openstreetmap-cyclosm-data-eu-feb21:
-    external: true
-  openstreetmap-cyclosm-data-poi:
+  openstreetmap-cyclosm-data-poi-dach-aug21:
     external: true
   openstreetmap-cyclosm-nodes:
     external: true
