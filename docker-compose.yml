@@ -1,135 +1,199 @@
 version: '3.7'
 
 services:
+  proxy:
+    image: jwilder/nginx-proxy:alpine
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./proxy/conf.d:/etc/nginx/conf.d:rw
+      - ./proxy/vhost.d:/etc/nginx/vhost.d:rw
+      - ./proxy/html:/usr/share/nginx/html:rw
+      - ./proxy/certs:/etc/nginx/certs:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    restart: unless-stopped
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    depends_on:
+      - proxy
+    volumes:
+      - ./proxy/certs:/etc/nginx/certs:rw
+      - ./proxy/vhost.d:/etc/nginx/vhost.d:rw
+      - ./proxy/html:/usr/share/nginx/html:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  redirect:
+    image: adamkdean/redirect
+    environment:
+      - VIRTUAL_HOST=keidel.me
+      - LETSENCRYPT_HOST=keidel.me
+      - REDIRECT_LOCATION=http://www.keidel.me
+      - REDIRECT_STATUS_CODE=301
+      - PRESERVE_URL=true
+
   brouter-web:
     build: ../brouter-web/
     ports:
         - "8083:80"
     volumes:
         - ../brouter/data/profiles:/usr/share/nginx/html/profiles
+        - /etc/localtime:/etc/localtime:ro
     depends_on:
       - brouter-app
+      - letsencrypt
+      - proxy
+    environment:
+      - VIRTUAL_HOST=routing.cxberlin.net
+      - LETSENCRYPT_HOST=routing.cxberlin.net
+      - LETSENCRYPT_EMAIL=accounts@keidel.me
   brouter-app:
     build: ../brouter/
     ports:
         - "17776:17777"
+    depends_on:
+      - letsencrypt
+      - proxy
     volumes:
         - ../brouter/data/profiles:/data/profiles
         - ../brouter/data/segments:/data/segments
         - ../brouter/data/customprofiles:/data/customprofiles
+        - /etc/localtime:/etc/localtime:ro
     environment:
         - REQUEST_TIMEOUT=300
         - JAVA_OPTS=-Xmx512M -Xms512M -Xmn16M -XX:+PrintCommandLineFlags
         - MAX_THREADS=4
+        - VIRTUAL_HOST=brouter.cxberlin.net
+        - LETSENCRYPT_HOST=brouter.cxberlin.net
+        - LETSENCRYPT_EMAIL=accounts@keidel.me
   tiles:
     build:
       context: ../gravel-tile-server/
       args:
         - STYLEREPO=https://github.com/cxberlin/gravel-cartocss-style.git
-        - STYLECOMMIT=3310be06f08ab362eade0d650c3bebae42c478e2
+        - STYLECOMMIT=cf4be2118aed3cd390a886fe1bf2344ee79106e2
     command: run
+    depends_on:
+      - letsencrypt
+      - proxy
     image: cxberlin/tileserver
     volumes:
-      - openstreetmap-cyclosm-data-dach-aug21:/var/lib/postgresql/12/main
+      - osm-data-2023-11-01:/var/lib/postgresql/12/main
     ports:
       - 8081:80
     environment:
       - UPDATES=enabled
-  pois:
-    build:
-      context: ../gravel-tile-server/
-      args:
-        - STYLEREPO=https://github.com/stefankeidel/poi-cartocss-style.git
-        - STYLECOMMIT=df2aae80cb557c0cb659be275bc4e7d803f29c23
-    command: run
-    volumes:
-      - openstreetmap-cyclosm-data-poi-dach-aug21:/var/lib/postgresql/12/main
-    ports:
-      - 8084:80
-    environment:
-      - UPDATES=enabled
+      - VIRTUAL_HOST=tiles.cxberlin.net
+      - LETSENCRYPT_HOST=tiles.cxberlin.net
+      - LETSENCRYPT_EMAIL=accounts@keidel.me
   osm-import:
-    image: cxberlin/tileserver
-    depends_on:
-      - tiles
+    image: mhajder/openstreetmap-tile-server-cyclosm
     volumes:
-      - openstreetmap-cyclosm-data-dach-aug21:/var/lib/postgresql/12/main
-      - openstreetmap-cyclosm-nodes:/nodes
+      - osm-data-2023-11-01:/var/lib/postgresql/12/main
     command: import
     environment:
-      - THREADS=4
+      - THREADS=2
       - UPDATES=enabled
-      - DOWNLOAD_PBF=http://download.geofabrik.de/europe/dach-latest.osm.pbf
-      - DOWNLOAD_POLY=http://download.geofabrik.de/europe/dach.poly
-      - OSM2PGSQL_EXTRA_ARGS=-C 4096 --flat-nodes /nodes/flat_nodes.bin
-  postgresql:
-    image: docker.io/bitnami/postgresql:11
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    volumes:
-      - 'postgresql_data:/bitnami/postgresql'
-  redis:
-    image: docker.io/bitnami/redis:6.0
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    volumes:
-      - 'redis_data:/bitnami'
-  discourse:
-    image: docker.io/bitnami/discourse:2
-    ports:
-      - '8085:3000'
+      - DOWNLOAD_PBF=https://download.geofabrik.de/europe-latest.osm.pbf
+      - DOWNLOAD_POLY=https://download.geofabrik.de/europe.poly
+      - OSM2PGSQL_EXTRA_ARGS=-C 4096
+
+  keidel-me:
+    image: nginx
     depends_on:
-      - postgresql
-      - redis
+      - letsencrypt
+      - proxy
     volumes:
-      - 'discourse_data:/bitnami'
+      - /home/stefan/keidel-me/services/web/static/keidel-me:/usr/share/nginx/html
     environment:
-      - POSTGRESQL_HOST=postgresql
-      - POSTGRESQL_ROOT_USER=postgres
-      - POSTGRESQL_CLIENT_CREATE_DATABASE_NAME=bitnami_application
-      - POSTGRESQL_CLIENT_CREATE_DATABASE_USERNAME=bn_discourse
-      - POSTGRESQL_CLIENT_CREATE_DATABASE_PASSWORD=bitnami1
-      - DISCOURSE_POSTGRESQL_NAME=bitnami_application
-      - DISCOURSE_POSTGRESQL_USERNAME=bn_discourse
-      - DISCOURSE_POSTGRESQL_PASSWORD=bitnami1
-      - DISCOURSE_HOSTNAME=www.gravel-forum.org
-      - DISCOURSE_SITENAME=Gravel Forum
-      - DISCOURSE_EMAIL=gravelforum.org@gmail.com
-      - SMTP_HOST=smtp.elasticemail.com
-      - SMTP_PORT=2525
-      - SMTP_USER=noreply@gravel-forum.org
-      - SMTP_PASSWORD=topsecret
-  sidekiq:
-    image: docker.io/bitnami/discourse:2
+      - VIRTUAL_HOST=www.keidel.me
+      - LETSENCRYPT_HOST=www.keidel.me
+      - LETSENCRYPT_EMAIL=accounts@keidel.me
+
+
+# Stefan Nextcloud
+  nc-stefan-db:
+    image: postgres:13
+    volumes:
+      - nc-stefan-db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK_ACCESS=internal
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=unicorn
+      - POSTGRES_DB=nextcloud
+    restart: unless-stopped
+
+  nc-stefan-app:
+    image: nextcloud:27
     depends_on:
-      - discourse
+      - letsencrypt
+      - proxy
+      - nc-stefan-db
     volumes:
-      - 'discourse_data:/bitnami'
-    command: 'nami start --foreground discourse-sidekiq'
+      - nc-stefan-app:/var/www/html
+      - ./nc-stefan/config:/var/www/html/config
+      - ./nc-stefan/custom_apps:/var/www/html/custom_apps
+      - ./nc-stefan/data:/var/www/html/data
+      - ./nc-stefan/themes:/var/www/html/themes
+      - /etc/localtime:/etc/localtime:ro
     environment:
-      - DISCOURSE_POSTGRESQL_NAME=bitnami_application
-      - DISCOURSE_POSTGRESQL_USERNAME=bn_discourse
-      - DISCOURSE_POSTGRESQL_PASSWORD=bitnami1
-      - DISCOURSE_HOST=discourse
-      - DISCOURSE_PORT=3000
-      - DISCOURSE_HOSTNAME=www.gravel-forum.org
-      - DISCOURSE_SITENAME="Gravel Forum"
-      - DISCOURSE_EMAIL=gravelforum.org@gmail.com
-      - SMTP_HOST=smtp.elasticemail.com
-      - SMTP_PORT=2525
-      - SMTP_USER=noreply@gravel-forum.org
-      - SMTP_PASSWORD=topsecret
+      - OVERWRITEPROTOCOL=https
+      - PHP_UPLOAD_LIMIT=16384M
+      - VIRTUAL_HOST=cloud.keidel.me
+      - LETSENCRYPT_HOST=cloud.keidel.me
+      - LETSENCRYPT_EMAIL=accounts@keidel.me
+    restart: unless-stopped
+
+# Grevet Nextcloud
+  nc-grevet-db:
+    image: postgres:13
+    volumes:
+      - nc-grevet-db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK_ACCESS=internal
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=unicorn
+      - POSTGRES_DB=nextcloud
+    restart: unless-stopped
+
+  nc-grevet-app:
+    image: nextcloud:25
+    depends_on:
+      - letsencrypt
+      - proxy
+      - nc-grevet-db
+    volumes:
+      - nc-grevet-app:/var/www/html
+      - ./nc-grevet/config:/var/www/html/config
+      - ./nc-grevet/custom_apps:/var/www/html/custom_apps
+      - ./nc-grevet/data:/var/www/html/data
+      - ./nc-grevet/themes:/var/www/html/themes
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - OVERWRITEPROTOCOL=https
+      - PHP_UPLOAD_LIMIT=8192M
+      - VIRTUAL_HOST=nextcloud.grevet.de
+      - LETSENCRYPT_HOST=nextcloud.grevet.de
+      - LETSENCRYPT_EMAIL=accounts@keidel.me
+    restart: unless-stopped
+
 
 volumes:
-  postgresql_data:
+  nc-stefan-app:
     external: true
-  redis_data:
+  nc-stefan-db:
     external: true
-  discourse_data:
+  nc-grevet-app:
     external: true
-  openstreetmap-cyclosm-data-dach-aug21:
+  nc-grevet-db:
     external: true
-  openstreetmap-cyclosm-data-poi-dach-aug21:
-    external: true
-  openstreetmap-cyclosm-nodes:
+  osm-data-2023-11-01:
     external: true
