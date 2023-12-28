@@ -131,7 +131,7 @@ services:
     restart: unless-stopped
 
   nc-stefan-app:
-    image: nextcloud:27
+    image: nextcloud:28
     depends_on:
       - letsencrypt
       - proxy
@@ -151,39 +151,39 @@ services:
       - LETSENCRYPT_EMAIL=accounts@keidel.me
     restart: unless-stopped
 
-# Grevet Nextcloud
-  nc-grevet-db:
-    image: postgres:13
-    volumes:
-      - nc-grevet-db:/var/lib/postgresql/data
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - NETWORK_ACCESS=internal
-      - POSTGRES_USER=nextcloud
-      - POSTGRES_PASSWORD=unicorn
-      - POSTGRES_DB=nextcloud
-    restart: unless-stopped
+# # Grevet Nextcloud
+#   nc-grevet-db:
+#     image: postgres:13
+#     volumes:
+#       - nc-grevet-db:/var/lib/postgresql/data
+#       - /etc/localtime:/etc/localtime:ro
+#     environment:
+#       - NETWORK_ACCESS=internal
+#       - POSTGRES_USER=nextcloud
+#       - POSTGRES_PASSWORD=unicorn
+#       - POSTGRES_DB=nextcloud
+#     restart: unless-stopped
 
-  nc-grevet-app:
-    image: nextcloud:25
-    depends_on:
-      - letsencrypt
-      - proxy
-      - nc-grevet-db
-    volumes:
-      - nc-grevet-app:/var/www/html
-      - ./nc-grevet/config:/var/www/html/config
-      - ./nc-grevet/custom_apps:/var/www/html/custom_apps
-      - ./nc-grevet/data:/var/www/html/data
-      - ./nc-grevet/themes:/var/www/html/themes
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - OVERWRITEPROTOCOL=https
-      - PHP_UPLOAD_LIMIT=8192M
-      - VIRTUAL_HOST=nextcloud.grevet.de
-      - LETSENCRYPT_HOST=nextcloud.grevet.de
-      - LETSENCRYPT_EMAIL=accounts@keidel.me
-    restart: unless-stopped
+#   nc-grevet-app:
+#     image: nextcloud:25
+#     depends_on:
+#       - letsencrypt
+#       - proxy
+#       - nc-grevet-db
+#     volumes:
+#       - nc-grevet-app:/var/www/html
+#       - ./nc-grevet/config:/var/www/html/config
+#       - ./nc-grevet/custom_apps:/var/www/html/custom_apps
+#       - ./nc-grevet/data:/var/www/html/data
+#       - ./nc-grevet/themes:/var/www/html/themes
+#       - /etc/localtime:/etc/localtime:ro
+#     environment:
+#       - OVERWRITEPROTOCOL=https
+#       - PHP_UPLOAD_LIMIT=8192M
+#       - VIRTUAL_HOST=nextcloud.grevet.de
+#       - LETSENCRYPT_HOST=nextcloud.grevet.de
+#       - LETSENCRYPT_EMAIL=accounts@keidel.me
+#     restart: unless-stopped
 
 
 volumes:
@@ -191,9 +191,9 @@ volumes:
     external: true
   nc-stefan-db:
     external: true
-  nc-grevet-app:
-    external: true
-  nc-grevet-db:
-    external: true
+  # nc-grevet-app:
+  #   external: true
+  # nc-grevet-db:
+  #   external: true
   osm-data-2023-11-01:
     external: true
